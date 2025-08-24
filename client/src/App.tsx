@@ -9,6 +9,7 @@ import AIModels from "./pages/AIModels";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import WorkoutTrainer from "@/components/WorkoutTrainer"; // 1. Import the component
 
 const App = () => (
   <AuthProvider>
@@ -20,6 +21,10 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/ai-models" element={<AIModels />} />
           <Route path="/auth" element={<Auth />} />
+          
+          {/* 2. Add the new route for the workout page */}
+          <Route path="/workout" element={<WorkoutTrainer />} />
+
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />

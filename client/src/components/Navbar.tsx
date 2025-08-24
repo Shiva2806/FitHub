@@ -16,29 +16,42 @@ const Navbar = () => {
     navigate('/auth');
   };
 
-  const getInitials = (email: string | undefined) => {
-    if (!email) return 'U';
-    const name = email.split('@')[0];
-    return name.charAt(0).toUpperCase();
+  const getInitials = (user: any): string => {
+    if (!user) return "U";
+    if (user?.user_metadata?.full_name) {
+      const nameParts = user.user_metadata.full_name.split(' ');
+      if (nameParts.length > 1) {
+        return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
+      }
+      return user.user_metadata.full_name.slice(0, 2).toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.slice(0, 2).toUpperCase();
+    }
+    return "U";
   };
-
-  const getDisplayName = (email: string | undefined) => {
-    if (!email) return 'User';
-    const username = email.split('@')[0];
-    return username.charAt(0).toUpperCase() + '. ' + username.slice(1);
+  
+  const getDisplayName = (user: any): string => {
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return "User";
   };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-lg border-b border-gray-800">
-      <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="relative container mx-auto px-6 h-16 flex items-center justify-between">
+        {/* --- UPDATED: Replaced image with styled text --- */}
         <Link to="/" className="flex items-center space-x-2">
-          <div className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-            FitnessAI
+          <div className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-red-500 bg-clip-text text-transparent">
+            FitHub
           </div>
         </Link>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-8">
+        <div className="hidden md:flex absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 items-center space-x-8">
           <Link to="/" className="text-white hover:text-purple-400 transition-colors font-medium">
             Home
           </Link>
@@ -48,22 +61,25 @@ const Navbar = () => {
           <Link to="/workout" className="text-white hover:text-purple-400 transition-colors font-medium">
             Workout
           </Link>
-          
+        </div>
+
+        <div className="hidden md:flex items-center">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center space-x-2 px-3 text-white hover:text-purple-400">
+                <Button variant="ghost" className="relative flex items-center justify-center h-10 w-10 rounded-full p-0">
                   <Avatar className="h-8 w-8 bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                    <AvatarFallback className="text-sm bg-gradient-to-r from-purple-500 to-pink-500">
-                      {getInitials(user.email)}
+                    <AvatarFallback className="text-sm bg-transparent">
+                      {getInitials(user)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="hidden sm:block font-medium">
-                    {getDisplayName(user.email)}
-                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 bg-gray-900 border-gray-700">
+                 <div className="px-2 py-2 border-b border-gray-700">
+                  <p className="text-sm font-medium text-white truncate">{getDisplayName(user)}</p>
+                  <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                </div>
                 <DropdownMenuItem asChild>
                   <Link to="/dashboard" className="flex items-center space-x-2 text-white hover:text-purple-400">
                     <User className="h-4 w-4" />
@@ -84,13 +100,12 @@ const Navbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <button className="bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 hover:from-purple-600 hover:via-pink-600 hover:to-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-300">
+            <button className="bg-gradient-to-r from-red-500 to-red-600 hover:shadow-lg hover:shadow-red-500/30 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-300">
               <Link to="/auth">Get Started</Link>
             </button>
           )}
         </div>
 
-        {/* Mobile menu button */}
         <button
           className="md:hidden text-white"
           onClick={() => setIsOpen(!isOpen)}
@@ -99,7 +114,6 @@ const Navbar = () => {
         </button>
       </div>
 
-      {/* Mobile Navigation */}
       {isOpen && (
         <div className="md:hidden bg-black/95 border-t border-gray-800">
           <div className="px-6 py-4 space-y-4">
@@ -113,7 +127,7 @@ const Navbar = () => {
               Workout
             </Link>
             {!user && (
-              <Link to="/auth" className="block bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 text-white font-semibold py-2 px-6 rounded-lg text-center">
+              <Link to="/auth" className="block bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold py-2 px-6 rounded-lg text-center">
                 Get Started
               </Link>
             )}

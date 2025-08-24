@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
@@ -13,8 +12,9 @@ import DietForm from "@/components/DietForm";
 import DietPlan from "@/components/DietPlan";
 import Footer from "@/components/Footer";
 import { DietPlanResponse } from "@/types/diet";
+import WorkoutTrainer from "@/components/WorkoutTrainer"; // Make sure WorkoutTrainer is imported
 
-type AIModel = 'body-type' | 'diet-plan';
+type AIModel = 'body-type' | 'diet-plan' | 'workout-trainer';
 
 const Index = () => {
   const [searchParams] = useSearchParams();
@@ -29,7 +29,6 @@ const Index = () => {
   const [dietLoading, setDietLoading] = useState(false);
   const { toast } = useToast();
 
-  // Check URL params on mount
   useEffect(() => {
     const modelParam = searchParams.get('model') as AIModel;
     if (modelParam === 'body-type' || modelParam === 'diet-plan') {
@@ -37,25 +36,14 @@ const Index = () => {
     }
   }, [searchParams]);
 
-  // Simulate ML model processing
   const handleImageUpload = async (file: File) => {
     setIsProcessing(true);
-    
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Mock classification results (in real app, this would call your Python backend)
     const bodyTypes: Array<'Ectomorph' | 'Mesomorph' | 'Endomorph'> = ['Ectomorph', 'Mesomorph', 'Endomorph'];
     const randomBodyType = bodyTypes[Math.floor(Math.random() * bodyTypes.length)];
-    const randomConfidence = Math.floor(Math.random() * 20) + 80; // 80-99% confidence
-    
-    setResult({
-      bodyType: randomBodyType,
-      confidence: randomConfidence
-    });
-    
+    const randomConfidence = Math.floor(Math.random() * 20) + 80;
+    setResult({ bodyType: randomBodyType, confidence: randomConfidence });
     setIsProcessing(false);
-    
     toast({
       title: "Analysis Complete!",
       description: `Your body type has been identified as ${randomBodyType} with ${randomConfidence}% confidence.`,
@@ -78,7 +66,7 @@ const Index = () => {
   };
 
   const handleStartWorkout = () => {
-    setSelectedModel('body-type');
+    setSelectedModel('workout-trainer');
   };
 
   const handleExploreModels = () => {
@@ -86,10 +74,18 @@ const Index = () => {
   };
 
   const handleBeginTraining = () => {
-    setSelectedModel('body-type');
+    navigate('/ai-models');
+  };
+  
+  const handleBackToHome = () => {
+    setSelectedModel(null);
   };
 
-  // Landing page view
+  // --- THIS IS THE NEW PART FOR THE WORKOUT TRAINER VIEW ---
+  if (selectedModel === 'workout-trainer') {
+    return <WorkoutTrainer onBackToHome={handleBackToHome} />;
+  }
+  
   if (!selectedModel) {
     return (
       <div className="min-h-screen bg-black">
@@ -105,11 +101,9 @@ const Index = () => {
     );
   }
 
-  // Model-specific views
   return (
     <div className="min-h-screen bg-black">
       <Navbar />
-      
       <div className="pt-24 pb-16">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
@@ -157,7 +151,6 @@ const Index = () => {
           )}
         </div>
       </div>
-      
       <Footer />
     </div>
   );
