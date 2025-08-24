@@ -17,7 +17,7 @@ const AIModels = () => {
       description: "Advanced computer vision technology to classify your body type",
       features: [
         "Instant photo analysis",
-        "99% accuracy rate", 
+        "80% accuracy rate", 
         "Ectomorph/Mesomorph/Endomorph classification",
         "Personalized workout recommendations",
         "Real-time results"

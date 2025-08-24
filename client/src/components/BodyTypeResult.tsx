@@ -15,7 +15,7 @@ const BodyTypeResult = ({ bodyType, confidence, onGetPlan }: BodyTypeResultProps
     switch (type) {
       case 'Ectomorph':
         return {
-          description: 'Naturally lean with a fast metabolism',
+          description: 'Naturally curvy with a slower metabolism',
           traits: ['Lean build', 'Fast metabolism', 'Difficulty gaining weight'],
           color: 'from-accent to-accent/70',
           icon: Zap
@@ -29,7 +29,7 @@ const BodyTypeResult = ({ bodyType, confidence, onGetPlan }: BodyTypeResultProps
         };
       case 'Endomorph':
         return {
-          description: 'Naturally curvy with slower metabolism',
+          description: 'Naturally skinny with fast metabolism',
           traits: ['Rounded build', 'Slower metabolism', 'Gains weight easily'],
           color: 'from-secondary to-secondary/70',
           icon: User
