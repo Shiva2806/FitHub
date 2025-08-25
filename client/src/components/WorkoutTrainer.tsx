@@ -63,6 +63,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     { id: 'lunges', name: '🦵 Lunges', description: 'Leg and glute strengthening' },
     { id: 'overhead_press', name: '🏋️ Overhead Press', description: 'Shoulder muscle building' },
     { id: 'lateral_raises', name: '👉 Lateral Raises', description: 'Shoulder isolation exercise' },
+    { id: 'pullups', name: '🏋️ Pull-ups', description: 'Back and bicep strength' },
     { id: 'glute_bridges', name: '🍑 Glute Bridges', description: 'Hip and glute activation' },
     { id: 'crunches', name: '🔥 Crunches', description: 'Core strengthening' },
     { id: 'plank', name: '🧘 Plank', description: 'Full core stability (Timed)' }
@@ -596,4 +597,4 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   );
 };
 
-export default WorkoutTrainer;
+export default WorkoutTrain
