@@ -17,7 +17,7 @@ interface ExerciseMetrics {
   stage: 'up' | 'down' | 'ready';
   goodReps: number;
   feedback: string[];
-  timer?: number; // For timed exercises like plank
+  timer?: number;
   isTimerRunning?: boolean;
 }
 
@@ -45,7 +45,6 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   const cameraRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // live mirrors to avoid stale-closure problems inside onPoseResults
   const metricsRef = useRef<ExerciseMetrics>(metrics);
   const selectedExerciseRef = useRef<string | null>(selectedExercise);
   const isActiveRef = useRef<boolean>(isWorkoutActive);
@@ -76,20 +75,11 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
         locateFile: (file: string) =>
           `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
       });
-
-      pose.setOptions({
-        modelComplexity: 1,
-        smoothLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      });
-
+      pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
       pose.onResults(onPoseResults);
       poseRef.current = pose;
     };
-
     initPose();
-
     return () => {
       stopCamera();
       poseRef.current = null;
@@ -99,20 +89,21 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
 
   // ---------------- Geometry helpers ----------------
   const calculateAngle = (a: number[], b: number[], c: number[]): number => {
-    const radians =
-      Math.atan2(c[1] - b[1], c[0] - b[0]) -
-      Math.atan2(a[1] - b[1], a[0] - b[0]);
+    const radians = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(a[1] - b[1], a[0] - b[0]);
     let angle = Math.abs((radians * 180.0) / Math.PI);
     return angle > 180 ? 360 - angle : angle;
   };
 
   const land = (pts: any[], idx: number) => [pts[idx]?.x ?? 0, pts[idx]?.y ?? 0];
 
-  // ---------------- Exercise processors (pure, return next metrics) ----------------
-  const tryCount = (next: ExerciseMetrics, now: number, cooldownMs = 350) => {
+  // ---------------- Exercise processors (with form validation) ----------------
+  const tryCount = (next: ExerciseMetrics, now: number, isGoodForm: boolean, cooldownMs = 350) => {
     if (now - lastRepAtRef.current > cooldownMs) {
       next.reps += 1;
-      next.goodReps += 1; // simple demo criterion
+      if (isGoodForm) {
+        next.goodReps += 1;
+        next.feedback.push("Good form!");
+      }
       lastRepAtRef.current = now;
     }
   };
@@ -125,10 +116,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const elbowAngle = Math.min(L_angle, R_angle);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
     const now = performance.now();
-    if (elbowAngle > 160) next.stage = 'down';
-    if (elbowAngle < 30 && prev.stage === 'down') {
-      next.stage = 'up';
-      tryCount(next, now);
+
+    if (elbowAngle > 160) {
+        next.stage = 'down';
+    }
+    if (prev.stage === 'down' && elbowAngle < 30) {
+        next.stage = 'up';
+        // Form check: A good rep is a full range of motion.
+        const isGood = elbowAngle < 30; 
+        if (!isGood) next.feedback.push("Curl higher!");
+        tryCount(next, now, isGood);
     }
     return next;
   };
@@ -141,10 +138,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const kneeAngle = Math.min(L_angle, R_angle);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
     const now = performance.now();
-    if (kneeAngle > 165) next.stage = 'up';
-    if (kneeAngle < 90 && prev.stage === 'up') {
-      next.stage = 'down';
-      tryCount(next, now, 450);
+
+    if (kneeAngle > 165) {
+        next.stage = 'up';
+    }
+    if (prev.stage === 'up' && kneeAngle < 100) {
+        next.stage = 'down';
+        // Form check: Did the user go deep enough?
+        const isGood = kneeAngle < 90;
+        if (!isGood) next.feedback.push("Go deeper!");
+        tryCount(next, now, isGood, 450);
     }
     return next;
   };
@@ -157,10 +160,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const elbowAngle = Math.min(L_angle, R_angle);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
     const now = performance.now();
-    if (elbowAngle > 160) next.stage = 'up';
-    if (elbowAngle < 90 && prev.stage === 'up') {
-      next.stage = 'down';
-      tryCount(next, now, 450);
+
+    if (elbowAngle > 160) {
+        next.stage = 'up';
+    }
+    if (prev.stage === 'up' && elbowAngle < 100) {
+        next.stage = 'down';
+        // Form check: Did the user go low enough?
+        const isGood = elbowAngle < 90;
+        if (!isGood) next.feedback.push("Go lower!");
+        tryCount(next, now, isGood, 450);
     }
     return next;
   };
@@ -173,10 +182,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const kneeAngle = Math.min(L_angle, R_angle);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
     const now = performance.now();
-    if (kneeAngle > 160) next.stage = 'up';
-    if (kneeAngle < 100 && prev.stage === 'up') {
-      next.stage = 'down';
-      tryCount(next, now, 500);
+
+    if (kneeAngle > 160) {
+        next.stage = 'up';
+    }
+    if (prev.stage === 'up' && kneeAngle < 110) {
+        next.stage = 'down';
+        // Form check: Did the user go deep enough?
+        const isGood = kneeAngle < 100;
+        if (!isGood) next.feedback.push("Go deeper!");
+        tryCount(next, now, isGood, 500);
     }
     return next;
   };
@@ -189,10 +204,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const elbowAngle = Math.min(L_angle, R_angle);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
     const now = performance.now();
-    if (elbowAngle < 90) next.stage = 'down';
-    if (elbowAngle > 160 && prev.stage === 'down') {
-      next.stage = 'up';
-      tryCount(next, now);
+
+    if (elbowAngle < 100) {
+        next.stage = 'down';
+    }
+    if (prev.stage === 'down' && elbowAngle > 150) {
+        next.stage = 'up';
+        // Form check: Did the user extend their arms fully?
+        const isGood = elbowAngle > 160;
+        if (!isGood) next.feedback.push("Extend arms fully!");
+        tryCount(next, now, isGood);
     }
     return next;
   };
@@ -205,13 +226,44 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const shoulderAngle = Math.max(L_angle, R_angle);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
     const now = performance.now();
-    if (shoulderAngle < 30) next.stage = 'down';
-    if (shoulderAngle > 80 && prev.stage === 'down') {
-      next.stage = 'up';
-      tryCount(next, now, 500);
+
+    if (shoulderAngle < 30) {
+        next.stage = 'down';
+    }
+    if (prev.stage === 'down' && shoulderAngle > 70) {
+        next.stage = 'up';
+        // Form check: Did the user raise their arms high enough?
+        const isGood = shoulderAngle > 80;
+        if (!isGood) next.feedback.push("Raise higher!");
+        tryCount(next, now, isGood, 500);
     }
     return next;
   };
+
+  const nextPullups = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
+    // This is a simplified check based on wrist and shoulder position.
+    // A more robust check would require a different camera angle.
+    const L_wrist_y = land(landmarks, 15)[1];
+    const R_wrist_y = land(landmarks, 16)[1];
+    const L_shoulder_y = land(landmarks, 11)[1];
+    const R_shoulder_y = land(landmarks, 12)[1];
+    const wrist_y = Math.min(L_wrist_y, R_wrist_y);
+    const shoulder_y = Math.min(L_shoulder_y, R_shoulder_y);
+    let next: ExerciseMetrics = { ...prev, feedback: [] };
+    const now = performance.now();
+
+    if (wrist_y > shoulder_y) {
+        next.stage = 'down';
+    }
+    if (prev.stage === 'down' && wrist_y < shoulder_y) {
+        next.stage = 'up';
+        // Form check: Did the user pull up high enough?
+        const isGood = wrist_y < shoulder_y - 0.05; // Chin over bar approximation
+        if (!isGood) next.feedback.push("Pull higher!");
+        tryCount(next, now, isGood, 600);
+    }
+    return next;
+};
   
   const nextGluteBridges = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const L_shoulder = land(landmarks, 11), L_hip = land(landmarks, 23), L_knee = land(landmarks, 25);
@@ -221,10 +273,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const hipAngle = Math.max(L_angle, R_angle);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
     const now = performance.now();
-    if (hipAngle < 120) next.stage = 'down';
-    if (hipAngle > 160 && prev.stage === 'down') {
-      next.stage = 'up';
-      tryCount(next, now, 500);
+
+    if (hipAngle < 130) {
+        next.stage = 'down';
+    }
+    if (prev.stage === 'down' && hipAngle > 150) {
+        next.stage = 'up';
+        // Form check: Did the user extend their hips fully?
+        const isGood = hipAngle > 160;
+        if (!isGood) next.feedback.push("Extend hips fully!");
+        tryCount(next, now, isGood, 500);
     }
     return next;
   };
@@ -237,10 +295,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const hipAngle = Math.min(L_angle, R_angle);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
     const now = performance.now();
-    if (hipAngle > 130) next.stage = 'down';
-    if (hipAngle < 100 && prev.stage === 'down') {
-      next.stage = 'up';
-      tryCount(next, now, 400);
+
+    if (hipAngle > 120) {
+        next.stage = 'down';
+    }
+    if (prev.stage === 'down' && hipAngle < 110) {
+        next.stage = 'up';
+        // Form check: Did the user crunch high enough?
+        const isGood = hipAngle < 100;
+        if (!isGood) next.feedback.push("Crunch higher!");
+        tryCount(next, now, isGood, 400);
     }
     return next;
   };
@@ -250,7 +314,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const bodyAngle = calculateAngle(shoulder, hip, ankle);
     let next = { ...prev, feedback: [] };
   
-    if (bodyAngle > 160 && bodyAngle < 200) { // Allow for some tolerance around 180
+    if (bodyAngle > 160 && bodyAngle < 200) {
       next.isTimerRunning = true;
       next.feedback.push("Good form! Hold it.");
     } else {
@@ -260,7 +324,6 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     return next;
   };
 
-  // --- NEW: A map to associate exercise IDs with their processing functions ---
   const exerciseProcessors: { [key: string]: (landmarks: any[], prev: ExerciseMetrics) => ExerciseMetrics } = {
     'bicep_curl': nextBicepCurl,
     'squats': nextSquats,
@@ -268,26 +331,23 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     'lunges': nextLunges,
     'overhead_press': nextOverheadPress,
     'lateral_raises': nextLateralRaises,
+    'pullups': nextPullups,
     'glute_bridges': nextGluteBridges,
     'crunches': nextCrunches,
     'plank': nextPlank,
   };
 
-  // ---------------- Pose Results -> compute metrics + draw ----------------
   const onPoseResults = (results: any) => {
     const landmarks = results?.poseLandmarks;
-
     if (isActiveRef.current && landmarks) {
       const current = metricsRef.current;
       let next: ExerciseMetrics = current;
-
       const exerciseProcessor = exerciseProcessors[selectedExerciseRef.current || ''];
       if (exerciseProcessor) {
         next = exerciseProcessor(landmarks, current);
       } else {
         next = { ...current };
       }
-
       metricsRef.current = next;
       setMetrics(next);
       drawPose(results);
@@ -296,45 +356,34 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     }
   };
 
-  // ---------------- Drawing ----------------
   const drawPose = (results: any) => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
     if (!canvas || !video) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     if (video.videoWidth && video.videoHeight) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
     }
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (video.readyState >= 2) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
-
     if (results?.poseLandmarks) {
       drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, { color: '#10B981', lineWidth: 3 });
       drawLandmarks(ctx, results.poseLandmarks, { color: '#EF4444', lineWidth: 2 });
     }
   };
 
-  // ---------------- Camera control ----------------
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 },
-        audio: false,
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
       streamRef.current = stream;
-
       if (!videoRef.current) return;
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
-
       if (!poseRef.current) return;
-
       cameraRef.current = new Camera(videoRef.current, {
         onFrame: async () => {
           if (poseRef.current && videoRef.current) {
@@ -344,7 +393,6 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
         width: 640,
         height: 480,
       });
-
       cameraRef.current.start();
     } catch (error) {
       console.error('Camera access error:', error);
@@ -363,11 +411,9 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     }
   };
 
-  // ---------------- Workout lifecycle ----------------
   const startWorkout = async () => {
     setCountdown(3);
     await startCamera();
-
     const countdownInterval = setInterval(() => {
       setCountdown((prev) => {
         if (prev === 1) {
@@ -406,7 +452,6 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     if (c && ctx) ctx.clearRect(0, 0, c.width, c.height);
   };
 
-  // --- NEW: Timer logic for plank ---
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isWorkoutActive && selectedExercise === 'plank' && metrics.isTimerRunning) {
@@ -424,10 +469,9 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     lastRepAtRef.current = 0;
   }, [selectedExercise]);
 
-  // --- UI RENDERING (No major changes, just adapting to new metrics) ---
   if (showSummary) {
     const isTimedExercise = selectedExercise === 'plank';
-    const formPercentage = metrics.reps > 0 ? (metrics.goodReps / metrics.reps) * 100 : 100;
+    const formPercentage = metrics.reps > 0 ? (metrics.goodReps / metrics.reps) * 100 : 0;
     return (
       <div className="min-h-screen bg-black text-white p-6">
         <div className="max-w-4xl mx-auto">
@@ -452,7 +496,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
                     <div className="text-gray-300">Duration</div>
                   </div>
                   <div className="text-center p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <div className="text-3xl font-bold text-purple-400 mb-2">{formPercentage.toFixed(1)}%</div>
+                    <div className="text-3xl font-bold text-purple-400 mb-2">{formPercentage.toFixed(0)}%</div>
                     <div className="text-gray-300">Form Accuracy</div>
                   </div>
                 </>
