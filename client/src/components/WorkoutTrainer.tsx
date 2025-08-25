@@ -597,4 +597,4 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   );
 };
 
-export default WorkoutTrain
+export default WorkoutTrainer;
