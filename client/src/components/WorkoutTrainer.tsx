@@ -12,11 +12,18 @@ interface WorkoutTrainerProps {
   onBackToHome: () => void;
 }
 
+interface FormFlags {
+  isDeepEnough?: boolean;
+  isFullyUp?: boolean;
+  isBackStraight?: boolean;
+}
+
 interface ExerciseMetrics {
   reps: number;
   stage: 'up' | 'down' | 'ready';
   goodReps: number;
   feedback: string[];
+  formFlags: FormFlags;
   timer?: number;
   isTimerRunning?: boolean;
 }
@@ -31,6 +38,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     stage: 'ready',
     goodReps: 0,
     feedback: [],
+    formFlags: {},
     timer: 0,
     isTimerRunning: false,
   });
@@ -96,14 +104,17 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
 
   const land = (pts: any[], idx: number) => [pts[idx]?.x ?? 0, pts[idx]?.y ?? 0];
 
-  // ---------------- Exercise processors (with form validation) ----------------
-  const tryCount = (next: ExerciseMetrics, now: number, isGoodForm: boolean, cooldownMs = 350) => {
+  // ---------------- Exercise processors (with improved form validation) ----------------
+  const tryCount = (next: ExerciseMetrics, now: number, cooldownMs = 350) => {
     if (now - lastRepAtRef.current > cooldownMs) {
       next.reps += 1;
-      if (isGoodForm) {
+      // A rep is good ONLY if both flags are set
+      if (next.formFlags.isDeepEnough && next.formFlags.isFullyUp) {
         next.goodReps += 1;
         next.feedback.push("Good form!");
       }
+      // Reset flags for the next rep
+      next.formFlags = {};
       lastRepAtRef.current = now;
     }
   };
@@ -111,21 +122,22 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   const nextBicepCurl = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const L_shoulder = land(landmarks, 11), L_elbow = land(landmarks, 13), L_wrist = land(landmarks, 15);
     const R_shoulder = land(landmarks, 12), R_elbow = land(landmarks, 14), R_wrist = land(landmarks, 16);
-    const L_angle = calculateAngle(L_shoulder, L_elbow, L_wrist);
-    const R_angle = calculateAngle(R_shoulder, R_elbow, R_wrist);
-    const elbowAngle = Math.min(L_angle, R_angle);
+    const elbowAngle = Math.min(calculateAngle(L_shoulder, L_elbow, L_wrist), calculateAngle(R_shoulder, R_elbow, R_wrist));
     let next: ExerciseMetrics = { ...prev, feedback: [] };
-    const now = performance.now();
-
+    
     if (elbowAngle > 160) {
-        next.stage = 'down';
+      next.stage = 'down';
+      next.formFlags.isFullyUp = true; // Mark the "down" part as complete
     }
-    if (prev.stage === 'down' && elbowAngle < 30) {
-        next.stage = 'up';
-        // Form check: A good rep is a full range of motion.
-        const isGood = elbowAngle < 30; 
-        if (!isGood) next.feedback.push("Curl higher!");
-        tryCount(next, now, isGood);
+    
+    if (prev.stage === 'down' && elbowAngle < 40) {
+      next.stage = 'up';
+      if (elbowAngle < 30) {
+        next.formFlags.isDeepEnough = true; // Mark the "up" part as complete
+      } else {
+        next.feedback.push("Curl higher!");
+      }
+      tryCount(next, performance.now());
     }
     return next;
   };
@@ -133,21 +145,22 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   const nextSquats = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const L_hip = land(landmarks, 23), L_knee = land(landmarks, 25), L_ankle = land(landmarks, 27);
     const R_hip = land(landmarks, 24), R_knee = land(landmarks, 26), R_ankle = land(landmarks, 28);
-    const L_angle = calculateAngle(L_hip, L_knee, L_ankle);
-    const R_angle = calculateAngle(R_hip, R_knee, R_ankle);
-    const kneeAngle = Math.min(L_angle, R_angle);
+    const kneeAngle = Math.min(calculateAngle(L_hip, L_knee, L_ankle), calculateAngle(R_hip, R_knee, R_ankle));
     let next: ExerciseMetrics = { ...prev, feedback: [] };
-    const now = performance.now();
 
     if (kneeAngle > 165) {
-        next.stage = 'up';
+      next.stage = 'up';
+      next.formFlags.isFullyUp = true;
     }
+
     if (prev.stage === 'up' && kneeAngle < 100) {
-        next.stage = 'down';
-        // Form check: Did the user go deep enough?
-        const isGood = kneeAngle < 90;
-        if (!isGood) next.feedback.push("Go deeper!");
-        tryCount(next, now, isGood, 450);
+      next.stage = 'down';
+      if (kneeAngle < 90) {
+        next.formFlags.isDeepEnough = true;
+      } else {
+        next.feedback.push("Go deeper!");
+      }
+      tryCount(next, performance.now(), 450);
     }
     return next;
   };
@@ -155,43 +168,54 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   const nextPushups = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const L_shoulder = land(landmarks, 11), L_elbow = land(landmarks, 13), L_wrist = land(landmarks, 15);
     const R_shoulder = land(landmarks, 12), R_elbow = land(landmarks, 14), R_wrist = land(landmarks, 16);
-    const L_angle = calculateAngle(L_shoulder, L_elbow, L_wrist);
-    const R_angle = calculateAngle(R_shoulder, R_elbow, R_wrist);
-    const elbowAngle = Math.min(L_angle, R_angle);
+    const elbowAngle = Math.min(calculateAngle(L_shoulder, L_elbow, L_wrist), calculateAngle(R_shoulder, R_elbow, R_wrist));
+    const bodyAngle = calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 28));
     let next: ExerciseMetrics = { ...prev, feedback: [] };
-    const now = performance.now();
+
+    if (bodyAngle < 160 || bodyAngle > 200) {
+      next.feedback.push("Keep your body straight!");
+      next.formFlags.isBackStraight = false;
+    } else {
+      next.formFlags.isBackStraight = true;
+    }
 
     if (elbowAngle > 160) {
-        next.stage = 'up';
+      next.stage = 'up';
+      next.formFlags.isFullyUp = true;
     }
     if (prev.stage === 'up' && elbowAngle < 100) {
-        next.stage = 'down';
-        // Form check: Did the user go low enough?
-        const isGood = elbowAngle < 90;
-        if (!isGood) next.feedback.push("Go lower!");
-        tryCount(next, now, isGood, 450);
+      next.stage = 'down';
+      if (elbowAngle < 90) {
+        next.formFlags.isDeepEnough = true;
+      } else {
+        next.feedback.push("Go lower!");
+      }
+      // A good rep requires a straight back
+      tryCount(next, performance.now(), next.formFlags.isBackStraight ?? false, 450);
     }
     return next;
   };
 
-  const nextLunges = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
+    const nextLunges = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const L_hip = land(landmarks, 23), L_knee = land(landmarks, 25), L_ankle = land(landmarks, 27);
     const R_hip = land(landmarks, 24), R_knee = land(landmarks, 26), R_ankle = land(landmarks, 28);
-    const L_angle = calculateAngle(L_hip, L_knee, L_ankle);
-    const R_angle = calculateAngle(R_hip, R_knee, R_ankle);
-    const kneeAngle = Math.min(L_angle, R_angle);
+    // Track both knees
+    const frontKneeAngle = calculateAngle(L_hip, L_knee, L_ankle);
+    const backKneeAngle = calculateAngle(R_hip, R_knee, R_ankle);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
-    const now = performance.now();
 
-    if (kneeAngle > 160) {
+    if (frontKneeAngle > 160 && backKneeAngle > 160) {
         next.stage = 'up';
+        next.formFlags.isFullyUp = true;
     }
-    if (prev.stage === 'up' && kneeAngle < 110) {
+    if (prev.stage === 'up' && (frontKneeAngle < 110 || backKneeAngle < 110)) {
         next.stage = 'down';
-        // Form check: Did the user go deep enough?
-        const isGood = kneeAngle < 100;
-        if (!isGood) next.feedback.push("Go deeper!");
-        tryCount(next, now, isGood, 500);
+        if (frontKneeAngle < 100 && backKneeAngle < 100) {
+            next.formFlags.isDeepEnough = true;
+        } else {
+            next.feedback.push("Lower both knees to 90 degrees!");
+        }
+        tryCount(next, performance.now(), 500);
     }
     return next;
   };
@@ -199,21 +223,21 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   const nextOverheadPress = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const L_shoulder = land(landmarks, 11), L_elbow = land(landmarks, 13), L_wrist = land(landmarks, 15);
     const R_shoulder = land(landmarks, 12), R_elbow = land(landmarks, 14), R_wrist = land(landmarks, 16);
-    const L_angle = calculateAngle(L_shoulder, L_elbow, L_wrist);
-    const R_angle = calculateAngle(R_shoulder, R_elbow, R_wrist);
-    const elbowAngle = Math.min(L_angle, R_angle);
+    const elbowAngle = Math.min(calculateAngle(L_shoulder, L_elbow, L_wrist), calculateAngle(R_shoulder, R_elbow, R_wrist));
     let next: ExerciseMetrics = { ...prev, feedback: [] };
-    const now = performance.now();
 
     if (elbowAngle < 100) {
         next.stage = 'down';
+        next.formFlags.isDeepEnough = true;
     }
     if (prev.stage === 'down' && elbowAngle > 150) {
         next.stage = 'up';
-        // Form check: Did the user extend their arms fully?
-        const isGood = elbowAngle > 160;
-        if (!isGood) next.feedback.push("Extend arms fully!");
-        tryCount(next, now, isGood);
+        if (elbowAngle > 160) {
+            next.formFlags.isFullyUp = true;
+        } else {
+            next.feedback.push("Extend arms fully!");
+        }
+        tryCount(next, performance.now());
     }
     return next;
   };
@@ -221,97 +245,93 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   const nextLateralRaises = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const L_hip = land(landmarks, 23), L_shoulder = land(landmarks, 11), L_elbow = land(landmarks, 13);
     const R_hip = land(landmarks, 24), R_shoulder = land(landmarks, 12), R_elbow = land(landmarks, 14);
-    const L_angle = calculateAngle(L_hip, L_shoulder, L_elbow);
-    const R_angle = calculateAngle(R_hip, R_shoulder, R_elbow);
-    const shoulderAngle = Math.max(L_angle, R_angle);
+    const shoulderAngle = Math.max(calculateAngle(L_hip, L_shoulder, L_elbow), calculateAngle(R_hip, R_shoulder, R_elbow));
+    const elbowAngle = Math.min(calculateAngle(land(landmarks, 11), land(landmarks, 13), land(landmarks, 15)), calculateAngle(land(landmarks, 12), land(landmarks, 14), land(landmarks, 16)));
     let next: ExerciseMetrics = { ...prev, feedback: [] };
-    const now = performance.now();
+    
+    if (elbowAngle < 150) {
+        next.feedback.push("Keep arms straighter!");
+    }
 
     if (shoulderAngle < 30) {
         next.stage = 'down';
+        next.formFlags.isDeepEnough = true;
     }
     if (prev.stage === 'down' && shoulderAngle > 70) {
         next.stage = 'up';
-        // Form check: Did the user raise their arms high enough?
-        const isGood = shoulderAngle > 80;
-        if (!isGood) next.feedback.push("Raise higher!");
-        tryCount(next, now, isGood, 500);
+        if (shoulderAngle > 80) {
+            next.formFlags.isFullyUp = true;
+        } else {
+            next.feedback.push("Raise higher!");
+        }
+        tryCount(next, performance.now(), 500);
     }
     return next;
   };
 
   const nextPullups = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    // This is a simplified check based on wrist and shoulder position.
-    // A more robust check would require a different camera angle.
-    const L_wrist_y = land(landmarks, 15)[1];
-    const R_wrist_y = land(landmarks, 16)[1];
-    const L_shoulder_y = land(landmarks, 11)[1];
-    const R_shoulder_y = land(landmarks, 12)[1];
-    const wrist_y = Math.min(L_wrist_y, R_wrist_y);
-    const shoulder_y = Math.min(L_shoulder_y, R_shoulder_y);
+    const wrist_y = Math.min(land(landmarks, 15)[1], land(landmarks, 16)[1]);
+    const shoulder_y = Math.min(land(landmarks, 11)[1], land(landmarks, 12)[1]);
     let next: ExerciseMetrics = { ...prev, feedback: [] };
-    const now = performance.now();
 
     if (wrist_y > shoulder_y) {
         next.stage = 'down';
+        next.formFlags.isFullyUp = true;
     }
     if (prev.stage === 'down' && wrist_y < shoulder_y) {
         next.stage = 'up';
-        // Form check: Did the user pull up high enough?
-        const isGood = wrist_y < shoulder_y - 0.05; // Chin over bar approximation
-        if (!isGood) next.feedback.push("Pull higher!");
-        tryCount(next, now, isGood, 600);
+        if (wrist_y < shoulder_y - 0.05) {
+            next.formFlags.isDeepEnough = true;
+        } else {
+            next.feedback.push("Pull higher!");
+        }
+        tryCount(next, performance.now(), 600);
     }
     return next;
-};
+  };
   
   const nextGluteBridges = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    const L_shoulder = land(landmarks, 11), L_hip = land(landmarks, 23), L_knee = land(landmarks, 25);
-    const R_shoulder = land(landmarks, 12), R_hip = land(landmarks, 24), R_knee = land(landmarks, 26);
-    const L_angle = calculateAngle(L_shoulder, L_hip, L_knee);
-    const R_angle = calculateAngle(R_shoulder, R_hip, R_knee);
-    const hipAngle = Math.max(L_angle, R_angle);
+    const hipAngle = Math.max(calculateAngle(land(landmarks, 11), land(landmarks, 23), land(landmarks, 25)), calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 26)));
     let next: ExerciseMetrics = { ...prev, feedback: [] };
-    const now = performance.now();
 
     if (hipAngle < 130) {
         next.stage = 'down';
+        next.formFlags.isDeepEnough = true;
     }
     if (prev.stage === 'down' && hipAngle > 150) {
         next.stage = 'up';
-        // Form check: Did the user extend their hips fully?
-        const isGood = hipAngle > 160;
-        if (!isGood) next.feedback.push("Extend hips fully!");
-        tryCount(next, now, isGood, 500);
+        if (hipAngle > 160) {
+            next.formFlags.isFullyUp = true;
+        } else {
+            next.feedback.push("Extend hips fully!");
+        }
+        tryCount(next, performance.now(), 500);
     }
     return next;
   };
   
   const nextCrunches = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    const L_shoulder = land(landmarks, 11), L_hip = land(landmarks, 23), L_knee = land(landmarks, 25);
-    const R_shoulder = land(landmarks, 12), R_hip = land(landmarks, 24), R_knee = land(landmarks, 26);
-    const L_angle = calculateAngle(L_shoulder, L_hip, L_knee);
-    const R_angle = calculateAngle(R_shoulder, R_hip, R_knee);
-    const hipAngle = Math.min(L_angle, R_angle);
+    const hipAngle = Math.min(calculateAngle(land(landmarks, 11), land(landmarks, 23), land(landmarks, 25)), calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 26)));
     let next: ExerciseMetrics = { ...prev, feedback: [] };
-    const now = performance.now();
 
     if (hipAngle > 120) {
         next.stage = 'down';
+        next.formFlags.isDeepEnough = true;
     }
     if (prev.stage === 'down' && hipAngle < 110) {
         next.stage = 'up';
-        // Form check: Did the user crunch high enough?
-        const isGood = hipAngle < 100;
-        if (!isGood) next.feedback.push("Crunch higher!");
-        tryCount(next, now, isGood, 400);
+        if (hipAngle < 100) {
+            next.formFlags.isFullyUp = true;
+        } else {
+            next.feedback.push("Crunch higher!");
+        }
+        tryCount(next, performance.now(), 400);
     }
     return next;
   };
 
   const nextPlank = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    const shoulder = land(landmarks, 12), hip = land(landmarks, 24), ankle = land(landmarks, 28);
-    const bodyAngle = calculateAngle(shoulder, hip, ankle);
+    const bodyAngle = calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 28));
     let next = { ...prev, feedback: [] };
   
     if (bodyAngle > 160 && bodyAngle < 200) {
@@ -341,12 +361,10 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const landmarks = results?.poseLandmarks;
     if (isActiveRef.current && landmarks) {
       const current = metricsRef.current;
-      let next: ExerciseMetrics = current;
+      let next: ExerciseMetrics = { ...current, feedback: [] }; // Clear feedback each frame
       const exerciseProcessor = exerciseProcessors[selectedExerciseRef.current || ''];
       if (exerciseProcessor) {
-        next = exerciseProcessor(landmarks, current);
-      } else {
-        next = { ...current };
+        next = exerciseProcessor(landmarks, next);
       }
       metricsRef.current = next;
       setMetrics(next);
@@ -437,7 +455,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   };
 
   const resetWorkout = () => {
-    const base: ExerciseMetrics = { reps: 0, stage: 'ready', goodReps: 0, feedback: [], timer: 0, isTimerRunning: false };
+    const base: ExerciseMetrics = { reps: 0, stage: 'ready', goodReps: 0, feedback: [], formFlags: {}, timer: 0, isTimerRunning: false };
     setMetrics(base);
     metricsRef.current = base;
     setIsWorkoutActive(false);
@@ -463,7 +481,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   }, [isWorkoutActive, selectedExercise, metrics.isTimerRunning]);
 
   useEffect(() => {
-    const base: ExerciseMetrics = { reps: 0, stage: 'ready', goodReps: 0, feedback: [], timer: 0, isTimerRunning: false };
+    const base: ExerciseMetrics = { reps: 0, stage: 'ready', goodReps: 0, feedback: [], formFlags: {}, timer: 0, isTimerRunning: false };
     setMetrics(base);
     metricsRef.current = base;
     lastRepAtRef.current = 0;
