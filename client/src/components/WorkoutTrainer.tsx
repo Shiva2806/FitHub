@@ -123,17 +123,17 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const elbowAngle = Math.min(calculateAngle(L_shoulder, L_elbow, L_wrist), calculateAngle(R_shoulder, R_elbow, R_wrist));
     let next: ExerciseMetrics = { ...prev };
     
-    if (elbowAngle > 160) {
+    if (elbowAngle > 150) { // Relaxed threshold
       next.stage = 'down';
       next.formFlags.isFullyUp = true;
     }
     
-    if (prev.stage === 'down' && elbowAngle < 40) {
+    if (prev.stage === 'down' && elbowAngle < 50) { // Relaxed threshold
       next.stage = 'up';
-      if (elbowAngle < 30) {
+      if (elbowAngle < 40) { // Stricter for good form
         next.formFlags.isDeepEnough = true;
       } else {
-        next.feedback = ["Curl higher!"];
+        next.feedback = ["Curl a little higher."];
       }
       tryCount(next, performance.now());
     }
@@ -146,17 +146,17 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const kneeAngle = Math.min(calculateAngle(L_hip, L_knee, L_ankle), calculateAngle(R_hip, R_knee, R_ankle));
     let next: ExerciseMetrics = { ...prev };
 
-    if (kneeAngle > 165) {
+    if (kneeAngle > 160) { // Relaxed threshold
       next.stage = 'up';
       next.formFlags.isFullyUp = true;
     }
 
-    if (prev.stage === 'up' && kneeAngle < 100) {
+    if (prev.stage === 'up' && kneeAngle < 120) { // Relaxed threshold
       next.stage = 'down';
-      if (kneeAngle < 90) {
+      if (kneeAngle < 100) { // Stricter for good form
         next.formFlags.isDeepEnough = true;
       } else {
-        next.feedback = ["Go deeper!"];
+        next.feedback = ["Go a bit deeper."];
       }
       tryCount(next, performance.now(), 450);
     }
@@ -170,23 +170,23 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const bodyAngle = calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 28));
     let next: ExerciseMetrics = { ...prev };
 
-    if (bodyAngle < 160 || bodyAngle > 200) {
+    if (bodyAngle < 155 || bodyAngle > 205) {
       next.feedback = ["Keep your body straight!"];
       next.formFlags.isBackStraight = false;
     } else {
       next.formFlags.isBackStraight = true;
     }
 
-    if (elbowAngle > 160) {
+    if (elbowAngle > 150) { // Relaxed threshold
       next.stage = 'up';
       next.formFlags.isFullyUp = true;
     }
-    if (prev.stage === 'up' && elbowAngle < 100) {
+    if (prev.stage === 'up' && elbowAngle < 110) { // Relaxed threshold
       next.stage = 'down';
-      if (elbowAngle < 90) {
+      if (elbowAngle < 100) { // Stricter for good form
         next.formFlags.isDeepEnough = true;
       } else {
-        next.feedback = ["Go lower!"];
+        next.feedback = ["Go a bit lower."];
       }
       if(next.formFlags.isBackStraight){
         tryCount(next, performance.now(), 450);
@@ -202,16 +202,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const backKneeAngle = calculateAngle(R_hip, R_knee, R_ankle);
     let next: ExerciseMetrics = { ...prev };
 
-    if (frontKneeAngle > 160 && backKneeAngle > 160) {
+    if (frontKneeAngle > 150 && backKneeAngle > 150) { // Relaxed threshold
         next.stage = 'up';
         next.formFlags.isFullyUp = true;
     }
-    if (prev.stage === 'up' && (frontKneeAngle < 110 || backKneeAngle < 110)) {
+    if (prev.stage === 'up' && (frontKneeAngle < 120 || backKneeAngle < 120)) { // Relaxed threshold
         next.stage = 'down';
-        if (frontKneeAngle < 100 && backKneeAngle < 100) {
+        if (frontKneeAngle < 110 && backKneeAngle < 110) { // Stricter for good form
             next.formFlags.isDeepEnough = true;
         } else {
-            next.feedback = ["Lower both knees to 90 degrees!"];
+            next.feedback = ["Lower your hips."];
         }
         tryCount(next, performance.now(), 500);
     }
@@ -224,13 +224,13 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const elbowAngle = Math.min(calculateAngle(L_shoulder, L_elbow, L_wrist), calculateAngle(R_shoulder, R_elbow, R_wrist));
     let next: ExerciseMetrics = { ...prev };
 
-    if (elbowAngle < 100) {
+    if (elbowAngle < 110) { // Relaxed threshold
         next.stage = 'down';
         next.formFlags.isDeepEnough = true;
     }
-    if (prev.stage === 'down' && elbowAngle > 150) {
+    if (prev.stage === 'down' && elbowAngle > 140) { // Relaxed threshold
         next.stage = 'up';
-        if (elbowAngle > 160) {
+        if (elbowAngle > 150) { // Stricter for good form
             next.formFlags.isFullyUp = true;
         } else {
             next.feedback = ["Extend arms fully!"];
@@ -247,20 +247,20 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const elbowAngle = Math.min(calculateAngle(land(landmarks, 11), land(landmarks, 13), land(landmarks, 15)), calculateAngle(land(landmarks, 12), land(landmarks, 14), land(landmarks, 16)));
     let next: ExerciseMetrics = { ...prev };
     
-    if (elbowAngle < 150) {
+    if (elbowAngle < 140) { // Relaxed threshold
         next.feedback = ["Keep arms straighter!"];
     }
 
-    if (shoulderAngle < 30) {
+    if (shoulderAngle < 40) { // Relaxed threshold
         next.stage = 'down';
         next.formFlags.isDeepEnough = true;
     }
-    if (prev.stage === 'down' && shoulderAngle > 70) {
+    if (prev.stage === 'down' && shoulderAngle > 60) { // Relaxed threshold
         next.stage = 'up';
-        if (shoulderAngle > 80) {
+        if (shoulderAngle > 75) { // Stricter for good form
             next.formFlags.isFullyUp = true;
         } else {
-            next.feedback = ["Raise higher!"];
+            next.feedback = ["Raise a little higher."];
         }
         tryCount(next, performance.now(), 500);
     }
@@ -292,16 +292,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const hipAngle = Math.max(calculateAngle(land(landmarks, 11), land(landmarks, 23), land(landmarks, 25)), calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 26)));
     let next: ExerciseMetrics = { ...prev };
 
-    if (hipAngle < 130) {
+    if (hipAngle < 140) { // Relaxed threshold
         next.stage = 'down';
         next.formFlags.isDeepEnough = true;
     }
     if (prev.stage === 'down' && hipAngle > 150) {
         next.stage = 'up';
-        if (hipAngle > 160) {
+        if (hipAngle > 155) { // Stricter for good form
             next.formFlags.isFullyUp = true;
         } else {
-            next.feedback = ["Extend hips fully!"];
+            next.feedback = ["Extend your hips fully."];
         }
         tryCount(next, performance.now(), 500);
     }
@@ -312,16 +312,16 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const hipAngle = Math.min(calculateAngle(land(landmarks, 11), land(landmarks, 23), land(landmarks, 25)), calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 26)));
     let next: ExerciseMetrics = { ...prev };
 
-    if (hipAngle > 120) {
+    if (hipAngle > 115) { // Relaxed threshold
         next.stage = 'down';
         next.formFlags.isDeepEnough = true;
     }
     if (prev.stage === 'down' && hipAngle < 110) {
         next.stage = 'up';
-        if (hipAngle < 100) {
+        if (hipAngle < 105) { // Stricter for good form
             next.formFlags.isFullyUp = true;
         } else {
-            next.feedback = ["Crunch higher!"];
+            next.feedback = ["Crunch a little higher."];
         }
         tryCount(next, performance.now(), 400);
     }
@@ -332,7 +332,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const bodyAngle = calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 28));
     let next = { ...prev };
   
-    if (bodyAngle > 160 && bodyAngle < 200) {
+    if (bodyAngle > 155 && bodyAngle < 205) { // Relaxed threshold
       next.isTimerRunning = true;
       next.feedback = ["Good form! Hold it."];
     } else {
