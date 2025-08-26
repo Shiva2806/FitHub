@@ -103,27 +103,27 @@ const DietPlan: React.FC<DietPlanProps> = ({ plan, onNewPlan }) => {
   const sections = formatAIResponse(plan.aiResponse);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
+    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in text-white">
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary to-primary/80 text-white rounded-lg shadow-lg p-8">
+      <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-lg p-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
             <h1 className="text-3xl font-bold mb-2">Your Personalized Diet Plan</h1>
-            <p className="text-lg opacity-90">
+            <p className="text-lg text-gray-400">
               Generated on {new Date(plan.timestamp).toLocaleDateString()}
             </p>
           </div>
           <div className="flex space-x-4">
             <button
               onClick={downloadPDF}
-              className="bg-white text-primary hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center space-x-2"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 flex items-center space-x-2"
             >
               <Download className="w-4 h-4" />
               <span>Download PDF</span>
             </button>
             <button
               onClick={onNewPlan}
-              className="bg-white/20 hover:bg-white/30 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center space-x-2"
+              className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center space-x-2"
             >
               <RefreshCw className="w-4 h-4" />
               <span>New Plan</span>
@@ -134,42 +134,42 @@ const DietPlan: React.FC<DietPlanProps> = ({ plan, onNewPlan }) => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-          <User className="w-8 h-8 text-primary mx-auto mb-3" />
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+        <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-lg p-6 text-center">
+          <User className="w-8 h-8 text-purple-400 mx-auto mb-3" />
+          <div className="text-2xl font-bold text-white mb-1">
             {plan.bmiData.bmi.toFixed(1)}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-gray-400">
             BMI ({plan.bmiData.category})
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-          <Target className="w-8 h-8 text-green-600 mx-auto mb-3" />
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+        <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-lg p-6 text-center">
+          <Target className="w-8 h-8 text-green-400 mx-auto mb-3" />
+          <div className="text-2xl font-bold text-white mb-1">
             {Math.abs(plan.userData.currentWeight - plan.userData.targetWeight)} kg
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-gray-400">
             Weight Goal
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-          <Calendar className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+        <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-lg p-6 text-center">
+          <Calendar className="w-8 h-8 text-blue-400 mx-auto mb-3" />
+          <div className="text-2xl font-bold text-white mb-1">
             {plan.bmiData.estimatedGoalDate}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-gray-400">
             Target Date
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-          <Droplets className="w-8 h-8 text-cyan-600 mx-auto mb-3" />
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+        <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-lg p-6 text-center">
+          <Droplets className="w-8 h-8 text-cyan-400 mx-auto mb-3" />
+          <div className="text-2xl font-bold text-white mb-1">
             {plan.userData.waterIntake}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-gray-400">
             Glasses/Day
           </div>
         </div>
@@ -184,25 +184,25 @@ const DietPlan: React.FC<DietPlanProps> = ({ plan, onNewPlan }) => {
           const isExpanded = expandedSections.has(sectionKey);
 
           return (
-            <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <div key={index} className="bg-gray-900 border border-gray-700 rounded-lg shadow-lg overflow-hidden">
               <button
                 onClick={() => toggleSection(sectionKey)}
-                className="w-full p-6 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 flex items-center justify-between"
+                className="w-full p-6 text-left hover:bg-gray-800 transition-colors duration-200 flex items-center justify-between"
               >
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h3 className="text-xl font-semibold text-white">
                   {title}
                 </h3>
                 {isExpanded ? (
-                  <ChevronUp className="w-5 h-5 text-gray-500" />
+                  <ChevronUp className="w-5 h-5 text-gray-400" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-500" />
+                  <ChevronDown className="w-5 h-5 text-gray-400" />
                 )}
               </button>
               
               {isExpanded && (
-                <div className="px-6 pb-6 border-t border-gray-200 dark:border-gray-700">
-                  <div className="pt-4 prose prose-gray dark:prose-invert max-w-none">
-                    <pre className="whitespace-pre-wrap font-sans text-gray-700 dark:text-gray-300 leading-relaxed">
+                <div className="px-6 pb-6 border-t border-gray-700">
+                  <div className="pt-4">
+                    <pre className="whitespace-pre-wrap font-sans text-gray-300 leading-relaxed">
                       {content}
                     </pre>
                   </div>
@@ -211,24 +211,6 @@ const DietPlan: React.FC<DietPlanProps> = ({ plan, onNewPlan }) => {
             </div>
           );
         })}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-center space-x-4 pt-8">
-        <button
-          onClick={downloadPDF}
-          className="bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center space-x-2"
-        >
-          <Download className="w-4 h-4" />
-          <span>Download as PDF</span>
-        </button>
-        <button
-          onClick={onNewPlan}
-          className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center space-x-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span>Generate New Plan</span>
-        </button>
       </div>
     </div>
   );
