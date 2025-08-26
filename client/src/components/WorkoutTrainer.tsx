@@ -12,18 +12,20 @@ interface WorkoutTrainerProps {
   onBackToHome: () => void;
 }
 
-interface FormFlags {
-  isDeepEnough?: boolean;
-  isFullyUp?: boolean;
-  isBackStraight?: boolean;
+// NEW: More detailed form tracking for each rep
+interface RepValidation {
+  isCorrectDepth: boolean;
+  isCorrectExtension: boolean;
+  isFormCorrect: boolean; // General flag for things like back straightness
+  feedback: string[];
 }
 
 interface ExerciseMetrics {
   reps: number;
   stage: 'up' | 'down' | 'ready';
   goodReps: number;
-  feedback: string[];
-  formFlags: FormFlags;
+  currentRepValidation: RepValidation;
+  lastRepFeedback: string[];
   timer?: number;
   isTimerRunning?: boolean;
 }
@@ -37,8 +39,8 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     reps: 0,
     stage: 'ready',
     goodReps: 0,
-    feedback: [],
-    formFlags: {},
+    currentRepValidation: { isCorrectDepth: false, isCorrectExtension: false, isFormCorrect: true, feedback: [] },
+    lastRepFeedback: [],
     timer: 0,
     isTimerRunning: false,
   });
@@ -108,32 +110,38 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   const tryCount = (next: ExerciseMetrics, now: number, cooldownMs = 350) => {
     if (now - lastRepAtRef.current > cooldownMs) {
       next.reps += 1;
-      if (next.formFlags.isDeepEnough && next.formFlags.isFullyUp) {
+      const { isCorrectDepth, isCorrectExtension, isFormCorrect, feedback } = next.currentRepValidation;
+      if (isCorrectDepth && isCorrectExtension && isFormCorrect) {
         next.goodReps += 1;
-        next.feedback = ["Good form!"]; // Clear other feedback on a good rep
+        next.lastRepFeedback = ["Good form!"];
+      } else {
+        next.lastRepFeedback = feedback;
+        if (feedback.length === 0) {
+            next.lastRepFeedback = ["Complete the full range of motion."];
+        }
       }
-      next.formFlags = {};
+      next.currentRepValidation = { isCorrectDepth: false, isCorrectExtension: false, isFormCorrect: true, feedback: [] };
       lastRepAtRef.current = now;
     }
   };
 
   const nextBicepCurl = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    const L_shoulder = land(landmarks, 11), L_elbow = land(landmarks, 13), L_wrist = land(landmarks, 15);
-    const R_shoulder = land(landmarks, 12), R_elbow = land(landmarks, 14), R_wrist = land(landmarks, 16);
-    const elbowAngle = Math.min(calculateAngle(L_shoulder, L_elbow, L_wrist), calculateAngle(R_shoulder, R_elbow, R_wrist));
-    let next: ExerciseMetrics = { ...prev };
-    
-    if (elbowAngle > 150) { // Relaxed threshold
-      next.stage = 'down';
-      next.formFlags.isFullyUp = true;
+    const elbowAngle = Math.min(calculateAngle(land(landmarks, 11), land(landmarks, 13), land(landmarks, 15)), calculateAngle(land(landmarks, 12), land(landmarks, 14), land(landmarks, 16)));
+    let next = { ...prev };
+
+    if (elbowAngle > 150) {
+      if (prev.stage !== 'down') {
+        next.stage = 'down';
+        next.currentRepValidation.isCorrectExtension = true;
+      }
     }
     
-    if (prev.stage === 'down' && elbowAngle < 50) { // Relaxed threshold
+    if (prev.stage === 'down' && elbowAngle < 50) {
       next.stage = 'up';
-      if (elbowAngle < 40) { // Stricter for good form
-        next.formFlags.isDeepEnough = true;
-      } else {
-        next.feedback = ["Curl a little higher."];
+      if (elbowAngle < 40) {
+        next.currentRepValidation.isCorrectDepth = true;
+      } else if (!next.currentRepValidation.isCorrectDepth) {
+        next.currentRepValidation.feedback = ["Curl a little higher."];
       }
       tryCount(next, performance.now());
     }
@@ -141,77 +149,75 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   };
 
   const nextSquats = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    const L_hip = land(landmarks, 23), L_knee = land(landmarks, 25), L_ankle = land(landmarks, 27);
-    const R_hip = land(landmarks, 24), R_knee = land(landmarks, 26), R_ankle = land(landmarks, 28);
-    const kneeAngle = Math.min(calculateAngle(L_hip, L_knee, L_ankle), calculateAngle(R_hip, R_knee, R_ankle));
-    let next: ExerciseMetrics = { ...prev };
+    const kneeAngle = Math.min(calculateAngle(land(landmarks, 23), land(landmarks, 25), land(landmarks, 27)), calculateAngle(land(landmarks, 24), land(landmarks, 26), land(landmarks, 28)));
+    let next = { ...prev };
 
-    if (kneeAngle > 160) { // Relaxed threshold
-      next.stage = 'up';
-      next.formFlags.isFullyUp = true;
+    if (kneeAngle > 160) {
+      if (prev.stage !== 'up') {
+        next.stage = 'up';
+        next.currentRepValidation.isCorrectExtension = true;
+      }
     }
 
-    if (prev.stage === 'up' && kneeAngle < 120) { // Relaxed threshold
+    if (prev.stage === 'up' && kneeAngle < 120) {
       next.stage = 'down';
-      if (kneeAngle < 100) { // Stricter for good form
-        next.formFlags.isDeepEnough = true;
-      } else {
-        next.feedback = ["Go a bit deeper."];
+      if (kneeAngle < 100) {
+        next.currentRepValidation.isCorrectDepth = true;
+      } else if (!next.currentRepValidation.isCorrectDepth){
+        next.currentRepValidation.feedback = ["Go a bit deeper."];
+      }
+      tryCount(next, performance.now(), 450);
+    }
+    return next;
+  };
+  
+  const nextPushups = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
+    const elbowAngle = Math.min(calculateAngle(land(landmarks, 11), land(landmarks, 13), land(landmarks, 15)), calculateAngle(land(landmarks, 12), land(landmarks, 14), land(landmarks, 16)));
+    const bodyAngle = calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 28));
+    let next = { ...prev };
+
+    if (bodyAngle < 155 || bodyAngle > 205) {
+      next.lastRepFeedback = ["Keep your body straight!"];
+      next.currentRepValidation.isFormCorrect = false;
+    } else {
+      next.currentRepValidation.isFormCorrect = true;
+    }
+
+    if (elbowAngle > 150) {
+      if (prev.stage !== 'up') {
+        next.stage = 'up';
+        next.currentRepValidation.isCorrectExtension = true;
+      }
+    }
+    if (prev.stage === 'up' && elbowAngle < 110) {
+      next.stage = 'down';
+      if (elbowAngle < 100) {
+        next.currentRepValidation.isCorrectDepth = true;
+      } else if (!next.currentRepValidation.isCorrectDepth){
+        next.currentRepValidation.feedback = ["Go a bit lower."];
       }
       tryCount(next, performance.now(), 450);
     }
     return next;
   };
 
-  const nextPushups = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    const L_shoulder = land(landmarks, 11), L_elbow = land(landmarks, 13), L_wrist = land(landmarks, 15);
-    const R_shoulder = land(landmarks, 12), R_elbow = land(landmarks, 14), R_wrist = land(landmarks, 16);
-    const elbowAngle = Math.min(calculateAngle(L_shoulder, L_elbow, L_wrist), calculateAngle(R_shoulder, R_elbow, R_wrist));
-    const bodyAngle = calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 28));
-    let next: ExerciseMetrics = { ...prev };
+  const nextLunges = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
+    const frontKneeAngle = calculateAngle(land(landmarks, 23), land(landmarks, 25), land(landmarks, 27));
+    const backKneeAngle = calculateAngle(land(landmarks, 24), land(landmarks, 26), land(landmarks, 28));
+    let next = { ...prev };
 
-    if (bodyAngle < 155 || bodyAngle > 205) {
-      next.feedback = ["Keep your body straight!"];
-      next.formFlags.isBackStraight = false;
-    } else {
-      next.formFlags.isBackStraight = true;
+    if (frontKneeAngle > 150 && backKneeAngle > 150) {
+        if (prev.stage !== 'up') {
+            next.stage = 'up';
+            next.currentRepValidation.isCorrectExtension = true;
+        }
     }
-
-    if (elbowAngle > 150) { // Relaxed threshold
-      next.stage = 'up';
-      next.formFlags.isFullyUp = true;
-    }
-    if (prev.stage === 'up' && elbowAngle < 110) { // Relaxed threshold
-      next.stage = 'down';
-      if (elbowAngle < 100) { // Stricter for good form
-        next.formFlags.isDeepEnough = true;
-      } else {
-        next.feedback = ["Go a bit lower."];
-      }
-      if(next.formFlags.isBackStraight){
-        tryCount(next, performance.now(), 450);
-      }
-    }
-    return next;
-  };
-
-    const nextLunges = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    const L_hip = land(landmarks, 23), L_knee = land(landmarks, 25), L_ankle = land(landmarks, 27);
-    const R_hip = land(landmarks, 24), R_knee = land(landmarks, 26), R_ankle = land(landmarks, 28);
-    const frontKneeAngle = calculateAngle(L_hip, L_knee, L_ankle);
-    const backKneeAngle = calculateAngle(R_hip, R_knee, R_ankle);
-    let next: ExerciseMetrics = { ...prev };
-
-    if (frontKneeAngle > 150 && backKneeAngle > 150) { // Relaxed threshold
-        next.stage = 'up';
-        next.formFlags.isFullyUp = true;
-    }
-    if (prev.stage === 'up' && (frontKneeAngle < 120 || backKneeAngle < 120)) { // Relaxed threshold
+    if (prev.stage === 'up' && (frontKneeAngle < 120 || backKneeAngle < 120)) {
         next.stage = 'down';
-        if (frontKneeAngle < 110 && backKneeAngle < 110) { // Stricter for good form
-            next.formFlags.isDeepEnough = true;
-        } else {
-            next.feedback = ["Lower your hips."];
+        if (frontKneeAngle < 110 && backKneeAngle < 110) {
+            next.currentRepValidation.isCorrectDepth = true;
+        } else if (!next.currentRepValidation.isCorrectDepth) {
+            next.currentRepValidation.feedback = ["Lower your hips."];
         }
         tryCount(next, performance.now(), 500);
     }
@@ -219,21 +225,21 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   };
 
   const nextOverheadPress = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    const L_shoulder = land(landmarks, 11), L_elbow = land(landmarks, 13), L_wrist = land(landmarks, 15);
-    const R_shoulder = land(landmarks, 12), R_elbow = land(landmarks, 14), R_wrist = land(landmarks, 16);
-    const elbowAngle = Math.min(calculateAngle(L_shoulder, L_elbow, L_wrist), calculateAngle(R_shoulder, R_elbow, R_wrist));
-    let next: ExerciseMetrics = { ...prev };
+    const elbowAngle = Math.min(calculateAngle(land(landmarks, 11), land(landmarks, 13), land(landmarks, 15)), calculateAngle(land(landmarks, 12), land(landmarks, 14), land(landmarks, 16)));
+    let next = { ...prev };
 
-    if (elbowAngle < 110) { // Relaxed threshold
-        next.stage = 'down';
-        next.formFlags.isDeepEnough = true;
+    if (elbowAngle < 110) {
+        if (prev.stage !== 'down') {
+            next.stage = 'down';
+            next.currentRepValidation.isCorrectDepth = true;
+        }
     }
-    if (prev.stage === 'down' && elbowAngle > 140) { // Relaxed threshold
+    if (prev.stage === 'down' && elbowAngle > 140) {
         next.stage = 'up';
-        if (elbowAngle > 150) { // Stricter for good form
-            next.formFlags.isFullyUp = true;
-        } else {
-            next.feedback = ["Extend arms fully!"];
+        if (elbowAngle > 150) {
+            next.currentRepValidation.isCorrectExtension = true;
+        } else if (!next.currentRepValidation.isCorrectExtension) {
+            next.currentRepValidation.feedback = ["Extend arms fully!"];
         }
         tryCount(next, performance.now());
     }
@@ -241,26 +247,29 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   };
 
   const nextLateralRaises = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
-    const L_hip = land(landmarks, 23), L_shoulder = land(landmarks, 11), L_elbow = land(landmarks, 13);
-    const R_hip = land(landmarks, 24), R_shoulder = land(landmarks, 12), R_elbow = land(landmarks, 14);
-    const shoulderAngle = Math.max(calculateAngle(L_hip, L_shoulder, L_elbow), calculateAngle(R_hip, R_shoulder, R_elbow));
+    const shoulderAngle = Math.max(calculateAngle(land(landmarks, 23), land(landmarks, 11), land(landmarks, 13)), calculateAngle(land(landmarks, 24), land(landmarks, 12), land(landmarks, 14)));
     const elbowAngle = Math.min(calculateAngle(land(landmarks, 11), land(landmarks, 13), land(landmarks, 15)), calculateAngle(land(landmarks, 12), land(landmarks, 14), land(landmarks, 16)));
-    let next: ExerciseMetrics = { ...prev };
+    let next = { ...prev };
     
-    if (elbowAngle < 140) { // Relaxed threshold
-        next.feedback = ["Keep arms straighter!"];
+    if (elbowAngle < 140) {
+        next.lastRepFeedback = ["Keep arms straighter!"];
+        next.currentRepValidation.isFormCorrect = false;
+    } else {
+        next.currentRepValidation.isFormCorrect = true;
     }
 
-    if (shoulderAngle < 40) { // Relaxed threshold
-        next.stage = 'down';
-        next.formFlags.isDeepEnough = true;
+    if (shoulderAngle < 40) {
+        if (prev.stage !== 'down') {
+            next.stage = 'down';
+            next.currentRepValidation.isCorrectDepth = true;
+        }
     }
-    if (prev.stage === 'down' && shoulderAngle > 60) { // Relaxed threshold
+    if (prev.stage === 'down' && shoulderAngle > 60) {
         next.stage = 'up';
-        if (shoulderAngle > 75) { // Stricter for good form
-            next.formFlags.isFullyUp = true;
-        } else {
-            next.feedback = ["Raise a little higher."];
+        if (shoulderAngle > 75) {
+            next.currentRepValidation.isCorrectExtension = true;
+        } else if (!next.currentRepValidation.isCorrectExtension) {
+            next.currentRepValidation.feedback = ["Raise a little higher."];
         }
         tryCount(next, performance.now(), 500);
     }
@@ -270,18 +279,20 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   const nextPullups = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const wrist_y = Math.min(land(landmarks, 15)[1], land(landmarks, 16)[1]);
     const shoulder_y = Math.min(land(landmarks, 11)[1], land(landmarks, 12)[1]);
-    let next: ExerciseMetrics = { ...prev };
+    let next = { ...prev };
 
     if (wrist_y > shoulder_y) {
-        next.stage = 'down';
-        next.formFlags.isFullyUp = true;
+        if (prev.stage !== 'down') {
+            next.stage = 'down';
+            next.currentRepValidation.isCorrectExtension = true;
+        }
     }
     if (prev.stage === 'down' && wrist_y < shoulder_y) {
         next.stage = 'up';
         if (wrist_y < shoulder_y - 0.05) {
-            next.formFlags.isDeepEnough = true;
-        } else {
-            next.feedback = ["Pull higher!"];
+            next.currentRepValidation.isCorrectDepth = true;
+        } else if (!next.currentRepValidation.isCorrectDepth) {
+            next.currentRepValidation.feedback = ["Pull higher!"];
         }
         tryCount(next, performance.now(), 600);
     }
@@ -290,18 +301,20 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   
   const nextGluteBridges = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const hipAngle = Math.max(calculateAngle(land(landmarks, 11), land(landmarks, 23), land(landmarks, 25)), calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 26)));
-    let next: ExerciseMetrics = { ...prev };
+    let next = { ...prev };
 
-    if (hipAngle < 140) { // Relaxed threshold
-        next.stage = 'down';
-        next.formFlags.isDeepEnough = true;
+    if (hipAngle < 140) {
+        if (prev.stage !== 'down') {
+            next.stage = 'down';
+            next.currentRepValidation.isCorrectDepth = true;
+        }
     }
     if (prev.stage === 'down' && hipAngle > 150) {
         next.stage = 'up';
-        if (hipAngle > 155) { // Stricter for good form
-            next.formFlags.isFullyUp = true;
-        } else {
-            next.feedback = ["Extend your hips fully."];
+        if (hipAngle > 155) {
+            next.currentRepValidation.isCorrectExtension = true;
+        } else if (!next.currentRepValidation.isCorrectExtension) {
+            next.currentRepValidation.feedback = ["Extend your hips fully."];
         }
         tryCount(next, performance.now(), 500);
     }
@@ -310,18 +323,20 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   
   const nextCrunches = (landmarks: any[], prev: ExerciseMetrics): ExerciseMetrics => {
     const hipAngle = Math.min(calculateAngle(land(landmarks, 11), land(landmarks, 23), land(landmarks, 25)), calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 26)));
-    let next: ExerciseMetrics = { ...prev };
+    let next = { ...prev };
 
-    if (hipAngle > 115) { // Relaxed threshold
-        next.stage = 'down';
-        next.formFlags.isDeepEnough = true;
+    if (hipAngle > 115) {
+        if (prev.stage !== 'down') {
+            next.stage = 'down';
+            next.currentRepValidation.isCorrectDepth = true;
+        }
     }
     if (prev.stage === 'down' && hipAngle < 110) {
         next.stage = 'up';
-        if (hipAngle < 105) { // Stricter for good form
-            next.formFlags.isFullyUp = true;
-        } else {
-            next.feedback = ["Crunch a little higher."];
+        if (hipAngle < 105) {
+            next.currentRepValidation.isCorrectExtension = true;
+        } else if (!next.currentRepValidation.isCorrectExtension) {
+            next.currentRepValidation.feedback = ["Crunch a little higher."];
         }
         tryCount(next, performance.now(), 400);
     }
@@ -332,12 +347,12 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
     const bodyAngle = calculateAngle(land(landmarks, 12), land(landmarks, 24), land(landmarks, 28));
     let next = { ...prev };
   
-    if (bodyAngle > 155 && bodyAngle < 205) { // Relaxed threshold
+    if (bodyAngle > 155 && bodyAngle < 205) {
       next.isTimerRunning = true;
-      next.feedback = ["Good form! Hold it."];
+      next.lastRepFeedback = ["Good form! Hold it."];
     } else {
       next.isTimerRunning = false;
-      next.feedback = ["Straighten your back!"];
+      next.lastRepFeedback = ["Straighten your back!"];
     }
     return next;
   };
@@ -453,7 +468,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   };
 
   const resetWorkout = () => {
-    const base: ExerciseMetrics = { reps: 0, stage: 'ready', goodReps: 0, feedback: [], formFlags: {}, timer: 0, isTimerRunning: false };
+    const base: ExerciseMetrics = { reps: 0, stage: 'ready', goodReps: 0, currentRepValidation: { isCorrectDepth: false, isCorrectExtension: false, isFormCorrect: true, feedback: [] }, lastRepFeedback: [], timer: 0, isTimerRunning: false };
     setMetrics(base);
     metricsRef.current = base;
     setIsWorkoutActive(false);
@@ -479,7 +494,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
   }, [isWorkoutActive, selectedExercise, metrics.isTimerRunning]);
 
   useEffect(() => {
-    const base: ExerciseMetrics = { reps: 0, stage: 'ready', goodReps: 0, feedback: [], formFlags: {}, timer: 0, isTimerRunning: false };
+    const base: ExerciseMetrics = { reps: 0, stage: 'ready', goodReps: 0, currentRepValidation: { isCorrectDepth: false, isCorrectExtension: false, isFormCorrect: true, feedback: [] }, lastRepFeedback: [], timer: 0, isTimerRunning: false };
     setMetrics(base);
     metricsRef.current = base;
     lastRepAtRef.current = 0;
@@ -623,7 +638,7 @@ const WorkoutTrainer: React.FC<WorkoutTrainerProps> = ({ onBackToHome }) => {
             <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 border border-gray-700/50">
               <h3 className="text-xl font-bold text-white mb-4">Form Feedback</h3>
               <div className="space-y-2 min-h-[50px]">
-                {metrics.feedback.length > 0 ? metrics.feedback.map((fb, i) => (
+                {metrics.lastRepFeedback.length > 0 ? metrics.lastRepFeedback.map((fb, i) => (
                   <div key={i} className={`p-3 rounded-lg text-sm ${fb.includes('Good') ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'}`}>
                     {fb}
                   </div>
