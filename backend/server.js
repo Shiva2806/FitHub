@@ -29,7 +29,8 @@ app.use(cors({
     'http://localhost:3000',
     'http://localhost:3001', 
     'http://localhost:8080',
-    'http://localhost:8081', // Your frontend port
+    'http://localhost:8081',
+    'https://fithub-ai.vercel.app', // Your frontend port
     process.env.FRONTEND_URL
   ].filter(Boolean), // Remove undefined values
   credentials: true,
