@@ -23,34 +23,18 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// --- START: NEW & CORRECTED CORS CONFIGURATION ---
-// Define the list of allowed origins (websites)
+// --- START: NEW & SIMPLIFIED CORS CONFIGURATION ---
 const whitelist = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://fithub-ai.vercel.app' // Your live frontend URL
 ];
 
-// Add the frontend URL from environment variables if it exists
-if (process.env.FRONTEND_URL) {
-  whitelist.push(process.env.FRONTEND_URL);
-}
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    // or if the origin is in our whitelist
-    if (!origin || whitelist.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-};
-
-app.use(cors(corsOptions));
-// --- END: NEW & CORRECTED CORS CONFIGURATION ---
+app.use(cors({
+  origin: whitelist,
+  credentials: true
+}));
+// --- END: NEW & SIMPLIFIED CORS CONFIGURATION ---
 
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
