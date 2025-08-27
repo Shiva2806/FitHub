@@ -23,7 +23,7 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// --- START: CORRECTED CORS CONFIGURATION ---
+// --- START: NEW & CORRECTED CORS CONFIGURATION ---
 // Define the list of allowed origins (websites)
 const whitelist = [
   'http://localhost:3000',
@@ -39,6 +39,7 @@ if (process.env.FRONTEND_URL) {
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
+    // or if the origin is in our whitelist
     if (!origin || whitelist.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -46,13 +47,10 @@ const corsOptions = {
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
-// --- END: CORRECTED CORS CONFIGURATION ---
+// --- END: NEW & CORRECTED CORS CONFIGURATION ---
 
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
