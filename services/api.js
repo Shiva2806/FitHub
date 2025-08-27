@@ -1,8 +1,12 @@
 // src/services/api.js
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api";
 
-console.log("API Base URL ->", API_BASE_URL); // ✅ Debug line
+// ✅ Use deployed backend if available, otherwise fallback to localhost
+const API_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL?.replace(/\/$/, "") || "http://localhost:5000/api";
 
+console.log("🌐 API Base URL ->", API_BASE_URL); // Debug log to confirm which backend is used
+
+// Custom API Error class
 export class APIError extends Error {
   constructor(message, status, data) {
     super(message);
@@ -11,20 +15,18 @@ export class APIError extends Error {
   }
 }
 
+// Handle API responses
 const handleResponse = async (response) => {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new APIError(
-      data.message || "An error occurred",
-      response.status,
-      data
-    );
+    throw new APIError(data.message || "An error occurred", response.status, data);
   }
 
   return data;
 };
 
+// Authentication API methods
 export const authAPI = {
   // Register new user
   signup: async (fullName, email, password) => {
@@ -79,12 +81,7 @@ export const authAPI = {
   },
 
   // Change password
-  changePassword: async (
-    token,
-    currentPassword,
-    newPassword,
-    confirmPassword
-  ) => {
+  changePassword: async (token, currentPassword, newPassword, confirmPassword) => {
     const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
       method: "PUT",
       headers: {
