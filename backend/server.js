@@ -23,18 +23,20 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// --- START: NEW & SIMPLIFIED CORS CONFIGURATION ---
-const whitelist = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'https://fithub-ai.vercel.app' // Your live frontend URL
-];
-
+// CORS configuration
 app.use(cors({
-  origin: whitelist,
-  credentials: true
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001', 
+    'http://localhost:8080',
+    'http://localhost:8081', // Your frontend port
+    process.env.FRONTEND_URL
+  ].filter(Boolean), // Remove undefined values
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  optionsSuccessStatus: 200
 }));
-// --- END: NEW & SIMPLIFIED CORS CONFIGURATION ---
 
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
